@@ -1,0 +1,262 @@
+Public Class Form1
+#Region "Essential values"
+    Const GameSpeed As Integer = 12         'Rate at which pictureboxes are moved along the screen
+    Const GravityStrength As Integer = 1    'Gravity field strength - the increase in acceleration of the player particele towards the floor every tick
+    Const JumpingPower As Integer = -23     'The increase in height which the player will recieve every jump
+    Const PointsPerJump As Integer = 1      'Points to increment per jump
+
+    Private UpwardsSpeed As Integer     'This variable allows for the jumping mechanism to work
+    Private TouchingFloor As Boolean    'This variable prevents double jumping
+#End Region
+#Region "Files and file arrays"     'Storage locations of the game's files
+    Const File1 As String = "D:\project\1.txt"
+    Const File2 As String = "D:\project\2.txt"
+    Const File3 As String = "D:\project\3.txt"
+    Const File4 As String = "D:\project\4.txt"
+    Const File5 As String = "D:\project\5.txt"
+    Function GetFileArray()     'This is used to combine all the files into an array to allow for the game to cycle through
+        Dim FileArray(5) As String
+        FileArray(1) = File1
+        FileArray(2) = File2
+        FileArray(3) = File3
+        FileArray(4) = File4
+        FileArray(5) = File5
+        Return FileArray        'Array is returned at the end for the game to read
+    End Function
+#End Region
+#Region "Player inputs"
+    Private Sub frmPlay_KeyDown(sender As Object, e As KeyEventArgs) Handles MyBase.KeyDown 'Handles game's inputs
+        Select Case e.KeyCode
+            Case Keys.Space                     'code below is run when the user presses space
+                If TouchingFloor = True Then    'will only run if the player is touching the floor; preventing jumping mid-air
+                    UpwardsSpeed = JumpingPower 'The player is accelerated upwards by the quantity specified in the constant JumpingPower
+                    TouchingFloor = False       'When the player jumps, they are no longer touching the floor - purpose of this line
+                    If UpwardsSpeed = JumpingPower Then
+                        IncrementJumps(True)    'True is passed into the sub, which the in turn increments the jump counter of the game
+                    End If
+                End If
+            Case Keys.P             'Pressing P pauses the game
+                StopTimers()        'This is done through a sub which disables all the timers in my program
+            Case Keys.C             'Pressing C resumes/continues the game
+                ActivateTimers()    'This is done through a sub which re-enables all the timers in my program
+        End Select
+    End Sub
+    Private Sub DrawUpSpeed()           'This subroutine was made for debugging purposes
+        Dim lblSpeed As New Label       'Made it easier for me to develop the jumping mechanism
+        Me.Controls.Remove(lblSpeed)
+        Dim MessageToShow As String
+        lblSpeed.Location = New Point(650, 50)
+        lblSpeed.Height = 20
+        lblSpeed.Width = 100
+        lblSpeed.BackColor = Color.SkyBlue
+        Me.Controls.Add(lblSpeed)
+        MessageToShow = UpwardsSpeed
+        lblSpeed.Text = MessageToShow
+        lblSpeed.BringToFront()
+    End Sub
+#End Region
+#Region "Game Mechanics - jumping & gravity"
+    Private Function IncrementJumps(ByVal Jumped As Boolean)    'This function is used to access the sub which draws the jump counter
+        Static JumpsMade As Integer     'Static creates only one instance of this variable so that its not reset everytime this function is accessed
+        If Jumped = True Then           'The parameter passed in will determine if the jump counter should be incremented or not
+            JumpsMade += PointsPerJump  'Jumping once will increment the jump counter by 1
+        End If
+        DrawScore(JumpsMade)            'The variable which counts the number of jumps made is passed into the sub which draws the counter itself
+        Return JumpsMade
+    End Function
+    Private Sub tmrGravity_Tick(sender As Object, e As EventArgs) Handles tmrGravity.Tick
+        UpwardsSpeed += GravityStrength             'This is how the speed of the player is changed due to gravity
+        For Each cntrl As Control In Me.Controls    'Becuase I have used textfiles to read in the level details the program has to check all picturebox objects to look for the player's so the changes only affects this picturebox
+            If TypeOf cntrl Is PictureBox Then
+                If cntrl.Tag = "Player" Then        'when the player object is found, it's vertical speed is changed by the program so that the player accelerates towards the floor
+                    cntrl.Top = cntrl.Top + UpwardsSpeed
+                End If
+            End If
+        Next
+    End Sub
+    Private Sub tmrGameLogic_Tick(sender As Object, e As EventArgs) Handles tmrGameLogic.Tick   'Game Logic check timer
+        Collisions()    'Collsions will be checked every tick of this timer
+        DrawUpSpeed()   'This is a test sub which helps to debug the jumping mechanism by showing the vertical speed of the player
+        MoveLevel()     'This is the subroutine responsible for the side scrolling of my game, checked every tick of the game so that the level moves at the right speed
+    End Sub
+    Sub MoveLevel()     'This is the subroutine responsible for the side scrolling of my game
+        For Each cntrl As Control In Me.Controls        'Will move all picturebox controls but the player's to the left to simulate the player traversing the level
+            If TypeOf cntrl Is PictureBox Then
+                If Not cntrl.Tag = "Player" Then
+                    cntrl.Left = cntrl.Left - GameSpeed 'GameSpeed constant determines how fast the scrolling will happen
+                End If
+            End If
+        Next
+    End Sub
+    Private Sub ActivateTimers()        'Re-enables the all timers which are used in my game; used in the pause/continue feature
+        tmrGameLogic.Enabled = True
+        tmrGravity.Enabled = True
+    End Sub
+    Private Sub StopTimers()            'Disables the all timers which are used in my game; used in the pause/continue feature
+        tmrGameLogic.Enabled = False
+        tmrGravity.Enabled = False
+    End Sub
+    Private Sub Collisions()    'Sub is responsible for checking the collisions the player makes with the level
+        Static LevelToDraw As Integer = 1   'This is used when the player reaches the end of a level; starts of at one because the user first starts playing in level 1
+        Static LowestPoint As Integer       'This is the lowest point which the player can hit
+        For Each b As Control In Me.Controls    'Checks which cause the player to respawn; if the player hits a picturebox with the tag "void" the player is repsawned
+            If TypeOf b Is PictureBox Then
+                If b.Tag = "Void" Then
+                    For Each cntrl As Control In Me.Controls
+                        If TypeOf cntrl Is PictureBox Then
+                            If cntrl.Tag = "Player" Then
+                                If cntrl.Bounds.IntersectsWith(b.Bounds) Then
+                                    Respawn(LevelToDraw)    'Respawning mechanism will simply redraw the entire level, the current level is passed in as a parameter so the program knows which level to redraw
+                                End If
+                            End If
+                        End If
+                    Next
+                ElseIf b.Tag = "End" Then   'Checks for when the player reaches the end of a level; this will prompt the 
+                    For Each cntrl As Control In Me.Controls
+                        If TypeOf cntrl Is PictureBox Then
+                            If cntrl.Tag = "Player" Then
+                                If cntrl.Bounds.IntersectsWith(b.Bounds) Then
+                                    LevelToDraw += 1    'When the user reaches the last level the LevelToDraw is incremented by 1 in preparation for drawing the next level
+                                    DrawNextLevelOrEndScreen(LevelToDraw)   'This sub then decides if the next level is drawn, or if the leaderboards screen is opened
+                                End If
+                            End If
+                        End If
+                    Next
+                ElseIf b.Tag = "Floor" Then 'This is here so that the player doesnt sink through the floor due to gravity; this makes sure that the floor is solid for the player
+                    For Each cntrl As Control In Me.Controls
+                        If TypeOf cntrl Is PictureBox Then
+                            If cntrl.Tag = "Player" Then
+                                If cntrl.Bounds.IntersectsWith(b.Bounds) Then
+                                    LowestPoint = (b.Top - 50)      'The Lowest Point is defined as the top of a bound - 50 in the Y direction
+                                    cntrl.Top = LowestPoint 'The lowest point is the lowest point the player can sit at, at a given time
+                                    UpwardsSpeed = 0    'When the player is in contact with the floor, their vertical speed becomes 0 to prevent the player from forcing itself through the floor (this was a bug fix)
+                                    TouchingFloor = True    'This check then lets the game know that the player is touching the floor, so that the user is given the opportunity to jump again
+                                End If
+                            End If
+                        End If
+                    Next    'use of nested loops and a lot of if statements for the collision detection
+                End If
+            End If
+        Next 'Arguable that I couldve compared everything to "player" instead of comparing "player" to everything else but this was not possible - I have tried and this made the game have delayed collision detection. Ultimately it was better for me to do what I have done here
+    End Sub
+#End Region
+#Region "Level Drawings"
+    Private Function GetLevelToDraw(ByVal CurrentLevel As Integer)  'This function returns the next level which is to be drawn by the program
+        Dim ArrayOfFiles(5) As String   'The array is 5 in length as my program features 5 games, this is done for level1 to level5 - not using 0th item
+        ArrayOfFiles = GetFileArray()   'The files are stored in an array so that the game can move through each item
+        Return ArrayOfFiles(CurrentLevel)   'The file for the next level is then returned by this function
+    End Function
+    Private Sub DrawNextLevelOrEndScreen(ByVal LevelToDraw As Integer)  'This sub decides whether or not the leaderboard screen is drawn after the completion of a given level
+        Dim NextLevel As String
+        Dim NumberOfLevels As Integer = GetFileArray().Length   'Determines how many levels there are so that the game knows when it has reached the final level
+        ClearLevel()    'This will clear the screen in preparation for the next level, or screen
+        If Not LevelToDraw = NumberOfLevels Then    'If the Level to be drawn isnt equal to the number of items in the FileArray then the game wil draw the next level
+            NextLevel = GetLevelToDraw(LevelToDraw) 'Finds the textfile for the next level
+            DrawLevel(NextLevel)    'Then draws this into the game itself
+        Else    'In the case the LevelToDraw is equal to the number of items in the FileArray, the leaderboard screen is drawn
+            DrawEndScreen() 'Used for moving the game to the leaderboard screen after level is completed
+        End If
+    End Sub
+    Private Sub ClearLevel()    'Removes all objects off of the form, prepares the game for the next level
+        Me.Controls.Clear()
+    End Sub
+    Private Sub DrawEndScreen() 'Used for moving the game to the leaderboard screen after level is completed
+        MsgBox("You win")       'The user will be given a message box prompt to let them know they have beaten the game
+        LeaderboardDisplay()
+    End Sub
+    Private Sub DrawLevel(ByVal FileString As String)
+        Static CurrentLevel As Integer  'CurrentLevel is defined once as a static to prevent reseting everytime this sub is run
+        Dim Level As New cLevelSetUp(FileString)    '"Level" is the name for the instance of the cLevelSetUp Class; this represents the level the user will be playing on at a given time. This instance is rewritten everytime a new level is loaded with the details to draw the next level.
+        Dim Objects As New List(Of PictureBox)  'A list of pictureboxes is used to read in and draw each level; a list of pictureboxes is produced by the cLevelSetUp class whenever a new level's textfiles is read in.
+        Objects = Level.GetLevelInfo(FileString)    'The List stores the properties of the pictureboxes that are to be drawn.
+        Dim ArrayLength As Integer = Level.GetNoOfPictureboxes(FileString)  'This value is used so that the game knows how many pictureboxes it is dealing with in the for loop below
+        Try
+            For i = 0 To ArrayLength    'Will loop through each item in the List of picturebox controls
+                Me.Controls.Add(Objects(i))     'THIS LINE ADDS EACH PICTUREBOX IN THE "OBJECTS" LIST TO THE FORM
+                If Objects(i).Tag = "Sky" Then          'If statements here will determine where the drawn pictureboxes will sit on the form
+                    Objects(i).SendToBack()             ' "sky" will always be sent to the back because it is esentially the game's background
+                ElseIf Objects(i).Tag = "Floor" Then    ' "Floor" tags will be moved fowards as they are the thing which the player will be moving on - the player needs to see these
+                    Objects(i).BringToFront()
+                ElseIf Objects(i).Tag = "Void" Then     ' "Void" tags will be moved fowards as they are the thing which the player should be avoiding; in order to avoid it, the player must be able to detect it
+                    Objects(i).BringToFront()
+                ElseIf Objects(i).Tag = "Player" Then   ' "Player" has to be moved fowards to the user can see where they are going
+                    Objects(i).BringToFront()
+                End If
+            Next
+        Catch ex As Exception       'Use of exception handling for use when the game reads in a badly written level textfile
+            MsgBox("Cannot draw the level - save file is corrupt")
+        End Try
+        CurrentLevel += 1           'Increments the level counter so the game knows what level the user is currently playing on
+        DrawLevelCounterLabel(True) 'ReDraws the level counter so the user can see it
+        IncrementJumps(False)       'ReDraws the jump counter without incrementing the jump counter
+    End Sub
+    Private Sub Respawn(ByVal LevelToReDraw As String)  'Sub responsible for the respawning mechanism
+        Dim FileString As String = GetLevelToDraw(LevelToReDraw)    'Will firstly get the file location of the level that has to be redrawn
+        ClearLevel()    'Then the form is cleared of its previous controls
+        ResetLevel(FileString)  'Then the File location is passed as a parameter into the sub which redraws levels
+    End Sub
+    Private Sub ResetLevel(ByVal FileString As String)  'works similarly to the DrawLevel sub except it doesn't increment the Level counter; this is used in the respawning mechanism. No exception handling because if the level has already been drawn it means it is already readable for the program
+        Dim Level As New cLevelSetUp(FileString)    '"Level" is the name for the instance of the cLevelSetUp Class; this represents the level the user will be playing on at a given time. This instance is rewritten everytime a new level is loaded with the details to draw the next level.
+        Dim Objects As New List(Of PictureBox)  'A list of pictureboxes is used to read in and draw each level; a list of pictureboxes is produced by the cLevelSetUp class whenever a new level's textfiles is read in.
+        Objects = Level.GetLevelInfo(FileString)    'The List stores the properties of the pictureboxes that are to be drawn.
+        Dim ArrayLength As Integer = Level.GetNoOfPictureboxes(FileString)  'This value is used so that the game knows how many pictureboxes it is dealing with in the for loop below
+        For i = 0 To ArrayLength    'Will loop through each item in the List of picturebox controls
+            Me.Controls.Add(Objects(i))     'THIS LINE ADDS EACH PICTUREBOX IN THE "OBJECTS" LIST TO THE FORM
+            If Objects(i).Tag = "Sky" Then          'If statements here will determine where the drawn pictureboxes will sit on the form
+                Objects(i).SendToBack()             ' "AIR" will always be sent to the back because it is esentially the game's background
+            ElseIf Objects(i).Tag = "Coin" Then     ' "COIN" tags will be moved fowards as they are the thing which the player collects in order to achieve a higher score
+                Objects(i).BringToFront()
+            ElseIf Objects(i).Tag = "Floor" Then    ' "Floor" tags will be moved fowards as they are the thing which the player will be moving on - the player needs to see these
+                Objects(i).BringToFront()
+            ElseIf Objects(i).Tag = "Void" Then     ' "Void" tags will be moved fowards as they are the thing which the player should be avoiding; in order to avoid it, the player must be able to see it
+                Objects(i).BringToFront()
+            ElseIf Objects(i).Tag = "Player" Then   ' "Player" has to be moved fowards to the user can see where they are going
+                Objects(i).BringToFront()
+            End If
+        Next
+        DrawLevelCounterLabel(False)    'Accessing method for drawing the Level counter which will not increment the value in the level counter
+        IncrementJumps(False)   'Accessing method for drawing the jump counter which will not increment the value in the jump counter
+    End Sub
+
+    Private Sub DrawLevelCounterLabel(ByVal increment As Boolean)   'This subroutine draws the Level counter, a boolean is passed in so that the subroutine knows if the value in the counter is to be incremented
+        Static LevelCount As Integer    'Level is a static so it is not reset everytime this sub is run
+        If increment = True Then    'If the boolean passed in is true, the value in the counter is incremented by 1
+            LevelCount += 1
+        End If
+        Dim lblLevelCount As New Label  'Code below (re)draws the counter whenever this subroutine is run
+        Dim MessageToShow As String
+        lblLevelCount.Location = New Point(333, 20)  'Location of the counter itself
+        lblLevelCount.Height = 20   'Dimension of the counter
+        lblLevelCount.Width = 100
+        lblLevelCount.BackColor = Color.SkyBlue 'Background colour of counter; had to be "SkyBlue"(same colour as the background) since "Transparent" doesnt work
+        Me.Controls.Add(lblLevelCount)  'Adds the counter to the form
+        MessageToShow = "Current Level: " & LevelCount
+        lblLevelCount.Text = MessageToShow  'Updates the message/value inside of the counter
+        lblLevelCount.BringToFront()    'Brings the counter in front of the background so that the player can see it
+    End Sub
+    Private Sub DrawScore(ByVal JumpsMade As Integer)   'This subroutine draws the Jump counter, a boolean is passed in so that the subroutine knows if the value in the counter is to be incremented
+        Dim lblScore As New Label  'Code below (re)draws the counter whenever this subroutine is run
+        Me.Controls.Remove(lblScore)
+        Dim MessageToShow As String
+        lblScore.Location = New Point(680, 20)  'Location of the counter itself
+        lblScore.Height = 20    'Dimension of the counter
+        lblScore.Width = 100
+        lblScore.BackColor = Color.SkyBlue 'Background colour of counter; had to be "SkyBlue"(same colour as the background) since "Transparent" doesnt work
+        Me.Controls.Add(lblScore)   'Adds the counter to the form
+        MessageToShow = "Jumps Made: " & JumpsMade
+        lblScore.Text = MessageToShow   'Updates the message/value inside of the counter
+        lblScore.BringToFront()     'Brings the counter in front of the background so that the player can see it
+    End Sub
+#End Region
+    Private Sub LeaderboardDisplay()    'Responsible for opening the leaderboards screen
+        StopTimers()    'Will firstly disable all timers to lower the load on the processor
+        Me.Close()  'Closes the game player form, called "Form1" (this form)
+        leaderboards.Show() 'Opens the leaderboards screen/form
+        leaderboards.SetUpScreenFromGame(IncrementJumps(False)) 'This will then set up the leaderboards screen so that the user will be able to enter a name to go with their score. The parameter passed in is so that the score can be displayed by the leaderboard screen
+    End Sub
+    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load    'Code beow is run when this form is loaded
+        Me.AutoScroll = False   'Makes it so that the user doesn't have the ability to have the vertical & horizontal slidy bars on the edge of program
+        ActivateTimers()    'All the timers in my game are enabled
+        DrawLevel(File1)    'The first level is then drawn; "File1" is always going to be first; this is also the same for the way I have designed the FileArray - "File1" is the first item in the array
+    End Sub
+End Class

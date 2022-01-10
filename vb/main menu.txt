@@ -1,0 +1,17 @@
+Public Class Main_Menu  'All code here gives my buttons functionality
+    Private Sub btnStart_Click(sender As Object, e As EventArgs) Handles btnStart.Click
+        Form1.Show()    'Opens the game player form
+        Me.Hide()   'Main Menu is HIDDEN so that the program doesnt close itself - vb requires that the main form remains open
+    End Sub
+    Private Sub btnQuit_Click(sender As Object, e As EventArgs) Handles btnQuit.Click
+        Me.Close()  'Quits the application by closing the main form
+    End Sub
+    Private Sub btnLeaderBoards_Click_1(sender As Object, e As EventArgs) Handles btnLeaderBoards.Click
+        OpenLeaderboards()
+    End Sub
+    Public Sub OpenLeaderboards()
+        leaderboards.Show()
+        leaderboards.SetUpForReading()  'Opens the leaderboards screen/form
+        Me.Hide()   'Main Menu is HIDDEN so that the program doesnt close itself - vb requires that the main form remains open
+    End Sub
+End Class

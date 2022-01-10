@@ -1,0 +1,61 @@
+Public Class cLevelSetUp
+    Public Function GetLevelInfo(ByVal FileName As String)     'ByVal FileName As String -> Levels are stored as text files which stores the properties of pictureboxes in the order: Xcoordinate, Ycoordinate, Width, Height, ID/name, Colour, tag
+        FileOpen(1, FileName, OpenMode.Input)   'File is opened here
+        Dim CurrentLine As String
+        Dim Objects As New List(Of PictureBox)
+        Try
+            Do Until EOF(1)                                 'EOF means end of file // This loop will continue until it has reached the end of the text file it is reading
+                Dim PICTUREBOX As New PictureBox            '   "PICTUREBOX" will be a temporary name for the newly added picturebox
+                For PictureBoxProperty = 1 To 8                              'For loop will loop through every line of the text file and assign the values to a given pictruebox property
+                    CurrentLine = LineInput(1)
+                    If PictureBoxProperty = 1 Then
+                        PICTUREBOX.Left = CurrentLine
+                    ElseIf PictureBoxProperty = 2 Then
+                        PICTUREBOX.Top = CurrentLine
+                    ElseIf PictureBoxProperty = 3 Then
+                        PICTUREBOX.Width = CurrentLine
+                    ElseIf PictureBoxProperty = 4 Then
+                        PICTUREBOX.Height = CurrentLine
+                    ElseIf PictureBoxProperty = 5 Then
+                        PICTUREBOX.Name = CurrentLine
+                    ElseIf PictureBoxProperty = 6 Then
+                        PICTUREBOX.BackColor = GetColour(CurrentLine)   'The colour is determine via a private function/getter method which is exclusive to this class
+                    ElseIf PictureBoxProperty = 7 Then
+                        PICTUREBOX.Tag = CurrentLine
+                    Else
+                        CurrentLine = ""                    'This line is to handle the "==========" in the text file for drawing the levels
+                    End If
+                    Objects.Add(PICTUREBOX) 'Each temporary picturebox control is added to the list so that it's properties can be stored to be passed back into the game player form
+                Next
+            Loop
+        Catch ex As Exception   'Exception handling to prevent crashes if a badly written textfile is read
+            MsgBox("Error Loading file")
+        End Try
+        FileClose(1)    'Files that are opened have to be closed
+        Return Objects  'The list of picturebox controls with their respective properties is returned (to the game player form where the class is accessed)
+    End Function
+    Private Function GetColour(ByVal Input As String) As Color  'Private Function allows for this class to determine the colour of a picturebox from the value stored in the textfile
+        Dim ColourString As Color
+        If Input = "SkyBlue" Then
+            ColourString = Color.SkyBlue
+        ElseIf Input = "Black" Then
+            ColourString = Color.Black
+        ElseIf Input = "Lime" Then
+            ColourString = Color.Lime
+        ElseIf Input = "Orange" Then
+            ColourString = Color.Orange
+        ElseIf Input = "Transparent" Then
+            ColourString = Color.SkyBlue
+        ElseIf Input = "Red" Then
+            ColourString = Color.Red
+        End If
+        Return ColourString
+    End Function
+    Public Function GetNoOfPictureboxes(ByVal FileName As String)   'Will tell the game how many picturebox controls it has to draw for a given level by counting the number of lines in the textfile
+        Dim LineCount
+        LineCount = (IO.File.ReadAllLines(FileName).Length) - 1
+        Return LineCount
+    End Function
+    Public Sub New(ByVal FileName As String)    'This instantiator is here so that the FileName can be passed into my class; without this the FileName wouldn't be able to be passed through
+    End Sub
+End Class
